@@ -33,6 +33,13 @@ func main() {
 
 	deps := Dependency{DB: db}
 
+  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+  defer cancel()
+  err = deps.Migrate(ctx)
+  if err != nil {
+    log.Fatalf("migrating: %v", err)
+  }
+
 	r := http.NewServeMux()
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -188,7 +195,7 @@ func main() {
 	}
 
 	<-sigCh
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatal(err)

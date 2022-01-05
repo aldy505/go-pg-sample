@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    restart: on-failure:3
+    ports:
+      - 80:8080
+    environment:
+      TZ: UTC
+      DATABASE_URL: postgres://postgres:gX886f8Gs88DsQYjqhNZ4@db:5432/dandelion
+    depends_on:
+      - db
+  db:
+    image: postgres:14-alpine
+    restart: on-failure:5
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: gX886f8Gs88DsQYjqhNZ4
+      POSTGRES_DB: dandelion
+

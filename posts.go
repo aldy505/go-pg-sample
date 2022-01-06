@@ -26,6 +26,7 @@ func (d *Dependency) GetPosts(ctx context.Context) ([]Post, error) {
 
 	rows, err := tx.QueryContext(ctx, "SELECT id, title, body FROM posts")
 	if err != nil {
+		tx.Rollback()
 		return []Post{}, err
 	}
 	defer rows.Close()
@@ -34,6 +35,7 @@ func (d *Dependency) GetPosts(ctx context.Context) ([]Post, error) {
 	for rows.Next() {
 		var post Post
 		if err := rows.Scan(&post.ID, &post.Title, &post.Body); err != nil {
+			tx.Rollback()
 			return []Post{}, err
 		}
 		posts = append(posts, post)
@@ -41,6 +43,7 @@ func (d *Dependency) GetPosts(ctx context.Context) ([]Post, error) {
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		return []Post{}, err
 	}
 	return posts, nil
@@ -61,11 +64,13 @@ func (d *Dependency) GetPostById(ctx context.Context, id int) (Post, error) {
 	row := tx.QueryRowContext(ctx, "SELECT id, title, body FROM posts WHERE id = $1", id)
 	var post Post
 	if err := row.Scan(&post.ID, &post.Title, &post.Body); err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
@@ -79,18 +84,20 @@ func (d *Dependency) AddPost(ctx context.Context, post Post) (Post, error) {
 	}
 	defer conn.Close()
 
-	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelWriteCommitted, ReadOnly: false})
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		return Post{}, err
 	}
 
 	row := tx.QueryRowContext(ctx, "INSERT INTO posts (title, body) VALUES ($1, $2) RETURNING id", post.Title, post.Body)
 	if err := row.Scan(&post.ID); err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
@@ -104,7 +111,7 @@ func (d *Dependency) UpdatePost(ctx context.Context, post Post) (Post, error) {
 	}
 	defer conn.Close()
 
-	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelWriteCommitted, ReadOnly: false})
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		return Post{}, err
 	}
@@ -113,6 +120,7 @@ func (d *Dependency) UpdatePost(ctx context.Context, post Post) (Post, error) {
 	row := tx.QueryRowContext(ctx, "SELECT title, body FROM posts WHERE id = $1", post.ID)
 	var oldPost Post
 	if err := row.Scan(&oldPost.Title, &oldPost.Body); err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
@@ -137,11 +145,13 @@ func (d *Dependency) UpdatePost(ctx context.Context, post Post) (Post, error) {
 
 	// Update the post
 	if _, err := tx.ExecContext(ctx, "UPDATE posts SET title = $1, body = $2 WHERE id = $3", post.Title, post.Body, post.ID); err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
@@ -155,7 +165,7 @@ func (d *Dependency) DeletePost(ctx context.Context, id int) (Post, error) {
 	}
 	defer conn.Close()
 
-	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelWriteCommitted, ReadOnly: false})
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		return Post{}, err
 	}
@@ -164,16 +174,19 @@ func (d *Dependency) DeletePost(ctx context.Context, id int) (Post, error) {
 	row := tx.QueryRowContext(ctx, "SELECT id FROM posts WHERE id = $1", id)
 	var post Post
 	if err := row.Scan(&post.ID); err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
 	// Delete the post
 	if _, err := tx.ExecContext(ctx, "DELETE FROM posts WHERE id = $1", id); err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		return Post{}, err
 	}
 

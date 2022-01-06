@@ -33,12 +33,12 @@ func main() {
 
 	deps := Dependency{DB: db}
 
-  ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-  defer cancel()
-  err = deps.Migrate(ctx)
-  if err != nil {
-    log.Fatalf("migrating: %v", err)
-  }
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = deps.Migrate(ctx)
+	if err != nil {
+		log.Fatalf("migrating: %v", err)
+	}
 
 	r := http.NewServeMux()
 
@@ -60,14 +60,20 @@ func main() {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
 					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(post)
+					err = json.NewEncoder(w).Encode(post)
+					if err != nil {
+						log.Println(err)
+					}
 				}
 			} else {
 				if posts, err := deps.GetPosts(r.Context()); err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
 					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(posts)
+					err = json.NewEncoder(w).Encode(posts)
+					if err != nil {
+						log.Println(err)
+					}
 				}
 			}
 
@@ -82,7 +88,10 @@ func main() {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			} else {
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(post)
+				err = json.NewEncoder(w).Encode(post)
+				if err != nil {
+					log.Println(err)
+				}
 			}
 
 		case http.MethodPatch:
@@ -96,7 +105,10 @@ func main() {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			} else {
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(post)
+				err = json.NewEncoder(w).Encode(post)
+				if err != nil {
+					log.Println(err)
+				}
 			}
 
 		case http.MethodDelete:
@@ -135,7 +147,10 @@ func main() {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				} else {
 					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(comment)
+					err = json.NewEncoder(w).Encode(comment)
+					if err != nil {
+						log.Println(err)
+					}
 				}
 			} else {
 				http.Error(w, "id is required", http.StatusBadRequest)
@@ -153,7 +168,10 @@ func main() {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			} else {
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(comment)
+				err = json.NewEncoder(w).Encode(comment)
+				if err != nil {
+					log.Println(err)
+				}
 			}
 
 		case http.MethodDelete:

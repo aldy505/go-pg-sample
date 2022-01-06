@@ -25,6 +25,7 @@ func (d *Dependency) GetComments(ctx context.Context, postId int) ([]Comment, er
 
 	rows, err := conn.QueryContext(ctx, "SELECT id, body FROM comment WHERE post_id = $1", postId)
 	if err != nil {
+		tx.Rollback()
 		return []Comment{}, err
 	}
 	defer rows.Close()
@@ -33,6 +34,7 @@ func (d *Dependency) GetComments(ctx context.Context, postId int) ([]Comment, er
 	for rows.Next() {
 		var comment Comment
 		if err := rows.Scan(&comment.ID, &comment.Body); err != nil {
+			tx.Rollback()
 			return []Comment{}, err
 		}
 		comments = append(comments, comment)
@@ -40,6 +42,7 @@ func (d *Dependency) GetComments(ctx context.Context, postId int) ([]Comment, er
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		return []Comment{}, err
 	}
 
@@ -53,7 +56,7 @@ func (d *Dependency) AddComment(ctx context.Context, comment Comment) (Comment, 
 	}
 	defer conn.Close()
 
-	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted, ReadOnly: false})
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable, ReadOnly: false})
 	if err != nil {
 		return Comment{}, err
 	}
@@ -62,11 +65,13 @@ func (d *Dependency) AddComment(ctx context.Context, comment Comment) (Comment, 
 
 	var commentId int
 	if err := row.Scan(&commentId); err != nil {
+		tx.Rollback()
 		return Comment{}, err
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		return Comment{}, err
 	}
 
@@ -89,6 +94,7 @@ func (d *Dependency) DeleteComment(ctx context.Context, id int) (Comment, error)
 	row := tx.QueryRowContext(ctx, "SELECT EXISTS (SELECT id FROM comment WHERE id = $1)", id)
 	var exists bool
 	if err := row.Scan(&exists); err != nil {
+		tx.Rollback()
 		return Comment{}, err
 	}
 
@@ -96,12 +102,14 @@ func (d *Dependency) DeleteComment(ctx context.Context, id int) (Comment, error)
 	if !exists {
 		row = tx.QueryRowContext(ctx, `DELETE FROM comment WHERE id = $1 RETURNING id`, id)
 		if err := row.Scan(&commentId); err != nil {
+			tx.Rollback()
 			return Comment{}, err
 		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		return Comment{}, err
 	}
 

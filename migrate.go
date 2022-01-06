@@ -61,7 +61,7 @@ func (d *Dependency) Migrate(ctx context.Context) error {
 		`ALTER TABLE comment
 		ADD CONSTRAINT fk_comment_post_id
 		FOREIGN KEY (post_id)
-		REFERENCES post(id);`); err != nil {
+		REFERENCES posts(id);`); err != nil {
 		tx.Rollback()
 		return err
 	}

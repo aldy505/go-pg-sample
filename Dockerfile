@@ -10,4 +10,4 @@ WORKDIR /src/app
 COPY --from=builder /src/app .
 ENV PORT=8080
 EXPOSE ${PORT}
-ENTRYPOINT ["/src/app/dandelion"]
+CMD ["/src/app/dandelion"]

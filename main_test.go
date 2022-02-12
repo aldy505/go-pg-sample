@@ -3,6 +3,7 @@ package main_test
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -11,23 +12,40 @@ import (
 	dandelion "dandelion"
 
 	_ "github.com/lib/pq"
+
+	"github.com/ory/dockertest/v3"
 )
 
 var deps *dandelion.Dependency
 
 func TestMain(m *testing.M) {
-	dbURL, ok := os.LookupEnv("DATABASE_URL")
-	if !ok {
-		dbURL = "postgres://postgres:gX886f8Gs88DsQYjqhNZ4@localhost:5432/dandelion?sslmode=disable"
-	}
-
-	var err error = nil
-
-	db, err := sql.Open("postgres", dbURL)
+	pool, err := dockertest.NewPool("")
 	if err != nil {
-		log.Printf("opening postgres connection: %v", err)
+		log.Fatalf("Could not connect to docker: %s", err)
 	}
-	defer db.Close()
+	
+	resource, err := pool.Run("postgres", "14-alpine", []string{"POSTGRES_PASSWORD=gX886f8Gs88DsQYjqhNZ4", "POSTGRES_USER=postgres", "POSTGRES_DB=dandelion"})
+	if err != nil {
+		log.Fatalf("Could not start resource: %s", err)
+	}
+
+	var db *sql.DB
+
+	if err := pool.Retry(func() error {
+		dbURL, ok := os.LookupEnv("DATABASE_URL")
+		if !ok {
+			dbURL = "postgres://postgres:gX886f8Gs88DsQYjqhNZ4@localhost:%s/dandelion?sslmode=disable"
+		}
+		
+		var err error
+		db, err = sql.Open("postgres", fmt.Sprintf(dbURL, resource.GetPort("5432/tcp")))
+		if err != nil {
+			return err
+		}
+		return db.Ping()
+	}); err != nil {
+		log.Fatalf("Could not connect to database: %s", err)
+	}
 
 	deps = &dandelion.Dependency{DB: db}
 
@@ -39,7 +57,15 @@ func TestMain(m *testing.M) {
 		log.Printf("migrating db: %v", err)
 	}
 
-	os.Exit(m.Run())
+	code := m.Run()
+
+	db.Close()
+
+	if err := pool.Purge(resource); err != nil {
+		log.Fatalf("Could not purge resource: %s", err)
+	}
+
+	os.Exit(code)
 }
 
 func cleanup() {

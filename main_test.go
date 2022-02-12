@@ -13,7 +13,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
+var deps *dandelion.Dependency
 
 func TestMain(m *testing.M) {
 	dbURL, ok := os.LookupEnv("DATABASE_URL")
@@ -23,15 +23,18 @@ func TestMain(m *testing.M) {
 
 	var err error = nil
 
-	db, err = sql.Open("postgres", dbURL)
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Printf("opening postgres connection: %v", err)
 	}
 	defer db.Close()
 
+	deps = &dandelion.Dependency{DB: db}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	err = (&dandelion.Dependency{DB: db}).Migrate(ctx)
+
+	err = deps.Migrate(ctx)
 	if err != nil {
 		log.Printf("migrating db: %v", err)
 	}
@@ -42,7 +45,8 @@ func TestMain(m *testing.M) {
 func cleanup() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	c, err := db.Conn(ctx)
+
+	c, err := deps.DB.Conn(ctx)
 	if err != nil {
 		log.Fatalf("acquiring connection pool: %v", err)
 	}
@@ -68,6 +72,7 @@ func cleanup() {
 
 	err = tx.Commit()
 	if err != nil {
+		tx.Rollback()
 		log.Fatalf("commiting transaction: %v", err)
 	}
 }

@@ -10,9 +10,6 @@ import (
 
 func TestAddPost(t *testing.T) {
 	t.Cleanup(cleanup)
-	deps := &dandelion.Dependency{
-		DB: db,
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -30,9 +27,6 @@ func TestAddPost(t *testing.T) {
 
 func TestGetPosts(t *testing.T) {
 	t.Cleanup(cleanup)
-	deps := &dandelion.Dependency{
-		DB: db,
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
@@ -81,9 +75,6 @@ func TestGetPosts(t *testing.T) {
 
 func TestGetPostById(t *testing.T) {
 	t.Cleanup(cleanup)
-	deps := &dandelion.Dependency{
-		DB: db,
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()

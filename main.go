@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -25,13 +26,14 @@ func main() {
 	if !ok {
 		dbURL = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
 	}
+
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("connecting to database: %v", err)
 	}
 	defer db.Close()
 
-	deps := Dependency{DB: db}
+	deps := &Dependency{DB: db}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -205,12 +207,14 @@ func main() {
 	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGINT)
 
-	err = server.ListenAndServe()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
-	}
+	go func() {
+		err = server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
 
 	<-sigCh
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
